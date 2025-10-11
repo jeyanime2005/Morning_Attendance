@@ -1,0 +1,52 @@
+.main-header {
+    text-align: center;
+    background: linear-gradient(135deg, #394ab6);
+    color: white;
+    /* padding: 15px 20px; */
+    border-radius: 10px;
+    margin-bottom: 0px;
+    box-shadow: 0 4px 15px rgba(253, 243, 243, 0.1);
+    width: 100%;
+    max-width: 1000px;
+}
+
+.main-header h1 {
+    font-size: 28px;
+    font-weight: 00;
+    margin-bottom: 10px;
+    font-weight: 1500;
+}
+
+.main-header h2 {
+    font-size: 22px;
+    font-weight: 500;
+    margin: 15px 0 5px 0;
+    font-weight: 1500;
+}
+
+.main-header p {
+    font-size: 16px;
+    opacity: 0.9;
+    margin: 0;
+    
+}
+
+.datetime {
+    font-size: 16px;
+    opacity: 0.9;
+    margin-bottom: 10px;
+}
+
+@media (max-width: 580px) {
+    .main-header {
+        padding: 2px;
+    }
+    
+    .main-header h1 {
+        font-size: 24px;
+    }
+    
+    .main-header h2 {
+        font-size: 20px;
+    }
+}
