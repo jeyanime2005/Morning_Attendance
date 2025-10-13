@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import './EmployeeCheckIn.css';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = 'http://172.51.21.104:5000';
+
+// Office coordinates (replace with your actual office coordinates)
+const OFFICE_LATITUDE = 12.990461; // Example: Chennai coordinates
+const OFFICE_LONGITUDE = 80.220037;
+const ALLOWED_RADIUS_METERS = 200; // 800 meters radius
 
 const EmployeeCheckIn = () => {
     const [formData, setFormData] = useState({
@@ -25,11 +30,174 @@ const EmployeeCheckIn = () => {
         timezone: 'IST'
     });
     const [timeError, setTimeError] = useState(false);
+    const [locationStatus, setLocationStatus] = useState({
+        isWithinOffice: false,
+        message: 'Checking location...',
+        distance: null,
+        error: null,
+        permissionGranted: null
+    });
+    const [gettingLocation, setGettingLocation] = useState(false);
+    const [showLocationGuide, setShowLocationGuide] = useState(false);
+
+    // Calculate distance between two coordinates using Haversine formula
+    const calculateDistance = (lat1, lon1, lat2, lon2) => {
+        const R = 6371e3; // Earth's radius in meters
+        const φ1 = lat1 * Math.PI / 180;
+        const φ2 = lat2 * Math.PI / 180;
+        const Δφ = (lat2 - lat1) * Math.PI / 180;
+        const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+        const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return R * c; // Distance in meters
+    };
+
+    // Check if geolocation is supported
+    const isGeolocationSupported = () => {
+        return !!navigator.geolocation;
+    };
+
+    // Get user's current location with better error handling
+    const getUserLocation = () => {
+        return new Promise((resolve, reject) => {
+            if (!isGeolocationSupported()) {
+                const error = new Error('Geolocation is not supported by this browser');
+                setLocationStatus({
+                    isWithinOffice: false,
+                    message: 'Browser does not support location services',
+                    distance: null,
+                    error: error.message,
+                    permissionGranted: false
+                });
+                reject(error);
+                return;
+            }
+
+            setGettingLocation(true);
+            setLocationStatus(prev => ({
+                ...prev,
+                message: 'Getting your location...',
+                error: null
+            }));
+            
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 15000, // Increased timeout
+                maximumAge: 60000
+            };
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    setGettingLocation(false);
+                    const userLat = position.coords.latitude;
+                    const userLon = position.coords.longitude;
+                    const accuracy = position.coords.accuracy;
+                    
+                    console.log(`📍 Location acquired - Lat: ${userLat}, Lon: ${userLon}, Accuracy: ${accuracy}m`);
+                    
+                    // Calculate distance from office
+                    const distance = calculateDistance(
+                        userLat, 
+                        userLon, 
+                        OFFICE_LATITUDE, 
+                        OFFICE_LONGITUDE
+                    );
+                    
+                    const isWithinRadius = distance <= ALLOWED_RADIUS_METERS;
+                    
+                    setLocationStatus({
+                        isWithinOffice: isWithinRadius,
+                        message: isWithinRadius 
+                            ? `You are within office premises (${Math.round(distance)}m away)` 
+                            : `You are outside office radius (${Math.round(distance)}m away)`,
+                        distance: Math.round(distance),
+                        error: null,
+                        permissionGranted: true
+                    });
+                    
+                    resolve({
+                        latitude: userLat,
+                        longitude: userLon,
+                        distance: distance,
+                        isWithinRadius: isWithinRadius,
+                        accuracy: accuracy
+                    });
+                },
+                (error) => {
+                    setGettingLocation(false);
+                    let errorMessage = 'Unable to get your location';
+                    let permissionGranted = false;
+                    
+                    switch (error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage = 'Location access denied. Please enable location services in your browser settings.';
+                            permissionGranted = false;
+                            setShowLocationGuide(true);
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage = 'Location information unavailable. Please check your device location settings.';
+                            permissionGranted = null;
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage = 'Location request timed out. Please try again.';
+                            permissionGranted = null;
+                            break;
+                        default:
+                            errorMessage = 'An unknown error occurred while getting location.';
+                            permissionGranted = null;
+                            break;
+                    }
+                    
+                    setLocationStatus({
+                        isWithinOffice: false,
+                        message: errorMessage,
+                        distance: null,
+                        error: errorMessage,
+                        permissionGranted: permissionGranted
+                    });
+                    
+                    reject(new Error(errorMessage));
+                },
+                options
+            );
+        });
+    };
+
+    // Request location permission
+    const requestLocationPermission = () => {
+        setShowLocationGuide(true);
+        setLocationStatus(prev => ({
+            ...prev,
+            message: 'Please enable location permissions in your browser...'
+        }));
+    };
+
+    // Retry location with guidance
+    const retryLocation = async () => {
+        setShowLocationGuide(false);
+        try {
+            await getUserLocation();
+        } catch (error) {
+            // Error already handled in getUserLocation
+        }
+    };
 
     // Fetch departments and time status on component mount
     useEffect(() => {
         fetchDepartments();
         checkTimeStatus();
+        
+        // Check if geolocation is supported and try to get location
+        if (isGeolocationSupported()) {
+            getUserLocation().catch(() => {
+                // Error handled in the function
+            });
+        }
+        
         // Check time status every 30 seconds
         const interval = setInterval(checkTimeStatus, 30000);
         return () => clearInterval(interval);
@@ -180,7 +348,44 @@ const EmployeeCheckIn = () => {
             alert('Please provide a rating');
             return;
         }
-        
+
+        // Check if location permission was denied
+        if (locationStatus.permissionGranted === false) {
+            alert('❌ Location access is required for check-in. Please enable location permissions and try again.');
+            setShowLocationGuide(true);
+            return;
+        }
+
+        // Check if location services are not supported
+        if (!isGeolocationSupported()) {
+            alert('❌ Your browser does not support location services. Please use a modern browser with location support.');
+            return;
+        }
+
+        // Get user location before submitting
+        try {
+            const locationData = await getUserLocation();
+            
+            if (!locationData.isWithinRadius) {
+                alert(`❌ Location Restricted: You are ${locationData.distance}m away from office. Only employees within ${ALLOWED_RADIUS_METERS}m radius can check in.`);
+                return;
+            }
+            
+            // Proceed with submission if within radius
+            await submitAttendance(locationData);
+            
+        } catch (error) {
+            if (error.message.includes('denied')) {
+                alert(`❌ Location access denied. Please enable location permissions to check in.`);
+                setShowLocationGuide(true);
+            } else {
+                alert(`❌ Location Error: ${error.message}. Cannot proceed with check-in.`);
+            }
+            return;
+        }
+    };
+
+    const submitAttendance = async (locationData) => {
         setLoading(true);
         setAlreadyCheckedIn(false);
         setIpBlocked(false);
@@ -195,7 +400,12 @@ const EmployeeCheckIn = () => {
                     employeeId: formData.employeeId,
                     employeeName: formData.employeeName,
                     departmentName: formData.departmentName,
-                    rating: formData.rating
+                    rating: formData.rating,
+                    location: {
+                        latitude: locationData.latitude,
+                        longitude: locationData.longitude,
+                        distance: locationData.distance
+                    }
                 })
             });
             
@@ -221,6 +431,13 @@ const EmployeeCheckIn = () => {
                 } else if (result.message.includes('Punch-in not allowed')) {
                     // Update time status if punch-in was denied due to time
                     checkTimeStatus();
+                } else if (result.message.includes('outside office radius')) {
+                    // Handle location-based rejection from server
+                    setLocationStatus(prev => ({
+                        ...prev,
+                        isWithinOffice: false,
+                        message: `Location restricted: ${result.message}`
+                    }));
                 }
                 alert(`❌ ${result.message}`);
             }
@@ -250,7 +467,7 @@ const EmployeeCheckIn = () => {
         return stars;
     };
 
-    const isFormDisabled = loading || alreadyCheckedIn || ipBlocked || !timeStatus.isPunchInAllowed || timeError;
+    const isFormDisabled = loading || alreadyCheckedIn || ipBlocked || !timeStatus.isPunchInAllowed || timeError || gettingLocation;
 
     return (
         <div className="container">
@@ -277,9 +494,80 @@ const EmployeeCheckIn = () => {
                     </button>
                 </div>
 
+                {/* Location Status Banner */}
+                <div className={`location-status-banner ${locationStatus.error ? 'error' : locationStatus.isWithinOffice ? 'allowed' : 'not-allowed'}`}>
+                    <div className="location-status-icon">
+                        {gettingLocation ? '📍' : locationStatus.error ? '⚠️' : locationStatus.isWithinOffice ? '🟢' : '🔴'}
+                    </div>
+                    <div className="location-status-content">
+                        <div className="location-status-message">
+                            {gettingLocation ? 'Getting your location...' : locationStatus.message}
+                        </div>
+                        {locationStatus.distance !== null && (
+                            <div className="location-status-details">
+                                Distance from office: {locationStatus.distance}m (Allowed: {ALLOWED_RADIUS_METERS}m)
+                            </div>
+                        )}
+                    </div>
+                    <button 
+                        className="refresh-location-btn"
+                        onClick={retryLocation}
+                        title="Refresh location"
+                        disabled={gettingLocation}
+                    >
+                        {gettingLocation ? '🔄' : '📍'}
+                    </button>
+                </div>
+
+                {/* Location Guide Modal */}
+                {showLocationGuide && (
+                    <div className="location-guide-modal">
+                        <div className="location-guide-content">
+                            <h3>📍 Enable Location Access</h3>
+                            <p>To check in, you need to enable location permissions:</p>
+                            
+                            <div className="browser-steps">
+                                <h4>Chrome/Edge:</h4>
+                                <ol>
+                                    <li>Click the lock icon (🔒) in address bar</li>
+                                    <li>Change "Location" to "Allow"</li>
+                                    <li>Refresh the page and try again</li>
+                                </ol>
+                                
+                                <h4>Firefox:</h4>
+                                <ol>
+                                    <li>Click the lock icon in address bar</li>
+                                    <li>Click "Connection secure" → "More Information"</li>
+                                    <li>Go to Permissions tab → Set "Location" to "Allow"</li>
+                                </ol>
+                                
+                                <h4>Safari:</h4>
+                                <ol>
+                                    <li>Go to Safari → Preferences → Websites</li>
+                                    <li>Select "Location" and allow this website</li>
+                                </ol>
+                            </div>
+                            
+                            <div className="location-guide-actions">
+                                <button 
+                                    className="guide-retry-btn"
+                                    onClick={retryLocation}
+                                >
+                                    🔄 Try Again
+                                </button>
+                                <button 
+                                    className="guide-close-btn"
+                                    onClick={() => setShowLocationGuide(false)}
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
-                        <label htmlFor="department">Select Department</label>
                         <select 
                             id="department"
                             name="departmentId"
@@ -298,7 +586,6 @@ const EmployeeCheckIn = () => {
                     </div>
 
                     <div className="form-group">
-                        <label htmlFor="employee">Select Your Name</label>
                         <select 
                             id="employee"
                             name="employeeId"
@@ -314,11 +601,6 @@ const EmployeeCheckIn = () => {
                                 </option>
                             ))}
                         </select>
-                        {formData.employeeName && (
-                            <div className="selected-employee">
-                                Selected: <strong>{formData.employeeName}</strong> - {formData.departmentName}
-                            </div>
-                        )}
                         {alreadyCheckedIn && (
                             <div className="error-message">
                                 ⚠️ You have already checked in today!
@@ -326,13 +608,12 @@ const EmployeeCheckIn = () => {
                         )}
                         {ipBlocked && (
                             <div className="warning-message">
-                                📱 This device has already been used to check in today.
+                                📱 "Device already used for check-in today".
                             </div>
                         )}
                     </div>
 
                     <div className="form-group">
-                        <label>Meeting Rating</label>
                         <div className="rating-container">
                             <div className="stars">
                                 {renderStars()}
@@ -346,24 +627,27 @@ const EmployeeCheckIn = () => {
                     <div className="button-group">
                         <button 
                             type="submit" 
-                            className={`submit-btn ${!timeStatus.isPunchInAllowed || timeError ? 'disabled-time' : ''}`}
-                            disabled={isFormDisabled || !formData.employeeId}
+                            className={`submit-btn ${!timeStatus.isPunchInAllowed || timeError || !locationStatus.isWithinOffice ? 'disabled-time' : ''}`}
+                            disabled={isFormDisabled || !formData.employeeId || !locationStatus.isWithinOffice}
                         >
-                            {loading ? '🔄 Submitting...' : 
+                            {gettingLocation ? '📍 Getting Location...' :
+                             loading ? '🔄 Submitting...' : 
                              alreadyCheckedIn ? 'Already Checked In' :
                              ipBlocked ? 'Device Already Used' :
                              timeError ? 'Time Check Error' :
                              !timeStatus.isPunchInAllowed ? 'Time Exceeded' :
-                             'Punch Attendance'}
+                             !locationStatus.isWithinOffice ? 'Outside Office Area' :
+                             'Submit'}
                         </button>
                     </div>
                 </form>
             </div>
             
             <div className="footer">
-                <p>© 2023 Company Name. All rights reserved.</p>
+                <p>© 2025 Rane Madras Limited. All rights reserved.</p>
                 <p style={{fontSize: '10px', color: '#95a5a6', marginTop: '5px'}}>
-                    Punch-in allowed: 09:00 AM - 09:45 AM IST (Server Time)
+                    Punch-in allowed: 09:00 AM - 09:45 AM IST (Server Time) | 
+                    Location: Within {ALLOWED_RADIUS_METERS}m of office
                 </p>
             </div>
         </div>
