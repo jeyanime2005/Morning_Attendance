@@ -52,7 +52,7 @@ label {
     display: block;
     margin-bottom: 12px;
     font-weight: 600;
-    color: #c50c7b;
+    color: #0c12c5;
     font-size: 15px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -80,7 +80,7 @@ input, select {
 
 input:focus, select:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: #153ade;
     background: rgba(255, 255, 255, 1);
     box-shadow: 
         0 0 0 4px rgba(102, 126, 234, 0.1),
@@ -505,43 +505,190 @@ select:disabled {
         font-size: 11px;
     }
 }
+/* Location Status Banner */
+.location-status-banner {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    border-left: 4px solid #95a5a6;
+    background: #f8f9fa;
+    gap: 12px;
+}
 
-.refresh-time-btn {
+.location-status-banner.allowed {
+    border-left-color: #27ae60;
+    background: #d5f4e6;
+}
+
+.location-status-banner.not-allowed {
+    border-left-color: #e74c3c;
+    background: #fadbd8;
+}
+
+.location-status-banner.error {
+    border-left-color: #f39c12;
+    background: #fdebd0;
+}
+
+.location-status-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.location-status-content {
+    flex: 1;
+}
+
+.location-status-message {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #2c3e50;
+}
+
+.location-status-details {
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+.refresh-location-btn {
     background: none;
-    border: none;
-    font-size: 16px;
-    cursor: pointer;
-    padding: 4px;
+    border: 1px solid #bdc3c7;
     border-radius: 4px;
-    transition: background-color 0.2s;
+    padding: 6px 8px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
 }
 
-.refresh-time-btn:hover {
-    background: rgba(0, 0, 0, 0.1);
+.refresh-location-btn:hover:not(:disabled) {
+    background: #ecf0f1;
 }
 
-/* Disabled state for time restriction */
+.refresh-location-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Location Guide Modal */
+.location-guide-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.location-guide-content {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.location-guide-content h3 {
+    color: #2c3e50;
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.location-guide-content h4 {
+    color: #34495e;
+    margin: 16px 0 8px 0;
+    font-size: 14px;
+}
+
+.browser-steps {
+    background: #f8f9fa;
+    padding: 16px;
+    border-radius: 8px;
+    margin: 16px 0;
+}
+
+.browser-steps ol {
+    margin: 8px 0;
+    padding-left: 20px;
+}
+
+.browser-steps li {
+    margin-bottom: 6px;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.location-guide-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.guide-retry-btn {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.guide-retry-btn:hover {
+    background: #2980b9;
+}
+
+.guide-close-btn {
+    background: #95a5a6;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.guide-close-btn:hover {
+    background: #7f8c8d;
+}
+
+/* Update existing styles for better integration */
+.time-status-banner {
+    margin-bottom: 12px;
+}
+
 .submit-btn.disabled-time {
-    background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%) !important;
-    cursor: not-allowed !important;
+    background: #bdc3c7 !important;
+    cursor: not-allowed;
 }
 
-/* Responsive adjustments */
-@media (max-width: 480px) {
-    .time-status-banner {
-        padding: 10px 12px;
+/* Responsive design */
+@media (max-width: 768px) {
+    .location-status-banner {
+        flex-direction: column;
+        align-items: flex-start;
         gap: 8px;
     }
     
-    .time-status-icon {
-        font-size: 18px;
+    .refresh-location-btn {
+        align-self: flex-end;
     }
     
-    .time-status-message {
-        font-size: 13px;
+    .location-guide-content {
+        margin: 20px;
+        width: calc(100% - 40px);
     }
     
-    .time-status-details {
-        font-size: 11px;
+    .location-guide-actions {
+        flex-direction: column;
     }
 }
