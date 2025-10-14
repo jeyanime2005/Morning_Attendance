@@ -19,8 +19,6 @@ const Header = () => {
         <div className="main-header">
             <h1>Morning Meeting Attendance</h1>
             <div className="datetime">{getCurrentDateTime()}</div>
-            {/* <h2>Employee Check-in</h2>
-            <p>Please complete the form below</p> */}
         </div>
     );
 };
