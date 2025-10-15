@@ -364,7 +364,7 @@ const EmployeeCheckIn = () => {
         if (ip) {
             const { allowed, existingRecord } = await checkIPRestriction(ip);
             if (!allowed && existingRecord) {
-                setIpRestrictionError(`This device has already been used for check-in today by ${existingRecord.employee_name}. Only one check-in per device is allowed.`);
+                setIpRestrictionError(`This device has been checked-in today`);
             }
         }
     };
@@ -811,3 +811,4 @@ const EmployeeCheckIn = () => {
 };
 
 export default EmployeeCheckIn;
+
